@@ -51,7 +51,7 @@ jQuery(document).ready(function ($) {
 								"</ol>" +
 								"</div>" +
 								"</div>" +
-								"<details class='debug-details'>" +
+								"<details class='debug-details' open>" +
 								"<summary><strong>🔧 Technical Debug Output</strong> (Click to expand)</summary>" +
 								"<pre>" +
 								(response.data.debug || "No debug output") +
@@ -88,7 +88,7 @@ jQuery(document).ready(function ($) {
 							"</ul>" +
 							"</div>" +
 							"</div>" +
-							"<details class='debug-details'>" +
+							"<details class='debug-details' open>" +
 							"<summary><strong>🔧 Debug Output</strong> (Click to expand)</summary>" +
 							"<pre>" +
 							(response.data.debug || "No debug output") +

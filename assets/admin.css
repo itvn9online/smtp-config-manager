@@ -139,8 +139,8 @@
     font-family: monospace;
     font-size: 12px;
     white-space: pre-wrap;
-    max-height: 300px;
-    overflow-y: auto;
+    /* max-height: 300px; */
+    /* overflow-y: auto; */
     margin-top: 10px;
 }
 
@@ -640,4 +640,81 @@
     line-height: 1.4;
     max-height: 300px;
     overflow-y: auto;
+}
+
+/* Pagination Styling for Tracking Stats */
+.scm-pagination {
+    margin-top: 20px;
+    text-align: center;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e1e1e1;
+}
+
+.scm-pagination .tablenav-pages {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.scm-pagination .displaying-num {
+    color: #646970;
+    font-size: 14px;
+    margin-right: 15px;
+}
+
+.scm-pagination .pagination-links {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.scm-pagination .button {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    color: #2271b1;
+    text-decoration: none;
+    font-size: 13px;
+    line-height: 1.4;
+    min-width: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.scm-pagination .button:hover {
+    background: #f6f7f7;
+    border-color: #8c8f94;
+    color: #0a4b78;
+}
+
+.scm-pagination .button:active {
+    background: #f0f0f1;
+    border-color: #999;
+    color: #0a4b78;
+}
+
+.scm-pagination .paging-input {
+    margin: 0 10px;
+    font-size: 14px;
+    color: #646970;
+}
+
+.scm-pagination .total-pages {
+    font-weight: 600;
+    color: #2271b1;
+}
+
+.scm-pagination .tablenav-paging-text {
+    display: inline-block;
+    background: #fff;
+    padding: 6px 12px;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    min-width: 80px;
+    text-align: center;
 }

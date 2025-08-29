@@ -193,6 +193,11 @@ class SMTP_Config_Manager
                             <button type="button" id="test-smtp" class="button button-secondary">Test SMTP Connection</button>
                         </p>
                     </form>
+
+                    <div class="scm-test-result" id="test-result" style="display: none;">
+                        <h3 style="padding-top: 8px;">Test Result</h3>
+                        <div id="test-output"></div>
+                    </div>
                 </div>
 
                 <div class="scm-sidebar">
@@ -304,11 +309,6 @@ class SMTP_Config_Manager
                                 Cần request production access để gửi cho mọi email.
                             </div>
                         </div>
-                    </div>
-
-                    <div class="scm-test-result" id="test-result" style="display: none;">
-                        <h3>Test Result</h3>
-                        <div id="test-output"></div>
                     </div>
                 </div>
             </div>
@@ -578,8 +578,11 @@ class SMTP_Config_Manager
             'Reply-To: ' . $smtp_settings['from_email']
         );
 
+        // Capture debug output properly
+        $debug_output = '';
+
         // Temporarily configure SMTP for test
-        add_filter('phpmailer_init', function ($phpmailer) use ($smtp_settings) {
+        add_filter('phpmailer_init', function ($phpmailer) use ($smtp_settings, &$debug_output) {
             $phpmailer->isSMTP();
             $phpmailer->Host = $smtp_settings['host'];
             $phpmailer->SMTPAuth = true;
@@ -602,18 +605,14 @@ class SMTP_Config_Manager
             $phpmailer->From = $smtp_settings['from_email'];
             $phpmailer->FromName = $smtp_settings['from_name'];
 
-            // SMTP Debug settings
+            // SMTP Debug settings - capture to variable instead of echoing
             $phpmailer->SMTPDebug = 2;
-            $phpmailer->Debugoutput = function ($str, $level) {
-                echo "SMTP Debug Level $level: " . htmlspecialchars($str) . "<br>\n";
+            $phpmailer->Debugoutput = function ($str, $level) use (&$debug_output) {
+                $debug_output .= "SMTP Debug Level $level: " . htmlspecialchars($str) . "<br>\n";
             };
-
-            // Capture debug output
-            ob_start();
         });
 
         $result = wp_mail($test_email, $subject, $message, $headers);
-        $debug_output = ob_get_clean();
 
         if ($result) {
             wp_send_json_success(array(
@@ -725,26 +724,41 @@ class SMTP_Config_Manager
         $opened_emails = $wpdb->get_var("SELECT COUNT(id) FROM $tracking_table WHERE opened_at IS NOT NULL");
         $open_rate = $total_emails > 0 ? round(($opened_emails / $total_emails) * 100, 2) : 0;
 
-        // Recent opens (last 30 days)
-        $recent_opens = $wpdb->get_results("
+        // Recent opens (last 30 days) with pagination
+        $ros_per_page = 20;
+        $ros_page = isset($_GET['recent_page']) ? max(1, intval($_GET['recent_page'])) : 1;
+        $ros_offset = ($ros_page - 1) * $ros_per_page;
+
+        // Get total count for recent opens pagination
+        $ros_total = $wpdb->get_var("
+            SELECT COUNT(t.id)
+            FROM $tracking_table t
+            LEFT JOIN $marketing_table m ON t.marketing_id = m.id
+            WHERE t.opened_at IS NOT NULL 
+            AND t.opened_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ");
+
+        $recent_opens = $wpdb->get_results($wpdb->prepare("
             SELECT t.email, t.opened_at, t.user_agent, t.ip_address, m.name, m.phone
             FROM $tracking_table t
             LEFT JOIN $marketing_table m ON t.marketing_id = m.id
             WHERE t.opened_at IS NOT NULL 
             AND t.opened_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
             ORDER BY t.opened_at DESC
-            LIMIT 50
-        ");
+            LIMIT %d OFFSET %d
+        ", $ros_per_page, $ros_offset));
 
-        // Top openers
+        $ros_total_pages = ceil($ros_total / $ros_per_page);
+
+        // Top openers (limit to 50 records)
         $top_openers = $wpdb->get_results("
             SELECT t.email, COUNT(t.id) as open_count, MAX(t.opened_at) as last_opened, m.name, m.phone
             FROM $tracking_table t
             LEFT JOIN $marketing_table m ON t.marketing_id = m.id
             WHERE t.opened_at IS NOT NULL
             GROUP BY t.email
-            ORDER BY open_count DESC
-            LIMIT 20
+            ORDER BY open_count DESC, t.opened_at DESC
+            LIMIT 50
         ");
 
         // Email clients stats
@@ -789,6 +803,12 @@ class SMTP_Config_Manager
                 <!-- Recent Opens -->
                 <div class="scm-stats-section">
                     <h2>Recent Opens (Last 30 Days)</h2>
+                    <p><strong>Total:</strong> <?php echo number_format($ros_total); ?> opens found |
+                        <strong>Showing:</strong> <?php echo number_format(($ros_page - 1) * $ros_per_page + 1); ?> -
+                        <?php echo number_format(min($ros_page * $ros_per_page, $ros_total)); ?> of
+                        <?php echo number_format($ros_total); ?>
+                    </p>
+
                     <?php if (!empty($recent_opens)): ?>
                         <table class="wp-list-table widefat fixed striped">
                             <thead>
@@ -822,6 +842,35 @@ class SMTP_Config_Manager
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+
+                        <!-- Recent Opens Pagination -->
+                        <?php if ($ros_total_pages > 1): ?>
+                            <div class="scm-pagination">
+                                <?php $base_url = admin_url('tools.php?page=email-tracking-stats'); ?>
+
+                                <div class="tablenav-pages">
+                                    <span class="displaying-num"><?php echo number_format($ros_total); ?> items</span>
+                                    <span class="pagination-links">
+                                        <?php if ($ros_page > 1): ?>
+                                            <a href="<?php echo $base_url . '&recent_page=1'; ?>" class="first-page button">«</a>
+                                            <a href="<?php echo $base_url . '&recent_page=' . ($ros_page - 1); ?>" class="prev-page button">‹</a>
+                                        <?php endif; ?>
+
+                                        <span class="paging-input">
+                                            <span class="tablenav-paging-text">
+                                                <?php echo $ros_page; ?> of <span class="total-pages"><?php echo $ros_total_pages; ?></span>
+                                            </span>
+                                        </span>
+
+                                        <?php if ($ros_page < $ros_total_pages): ?>
+                                            <a href="<?php echo $base_url . '&recent_page=' . ($ros_page + 1); ?>" class="next-page button">›</a>
+                                            <a href="<?php echo $base_url . '&recent_page=' . $ros_total_pages; ?>" class="last-page button">»</a>
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
                     <?php else: ?>
                         <p>No email opens recorded in the last 30 days.</p>
                     <?php endif; ?>
@@ -829,7 +878,8 @@ class SMTP_Config_Manager
 
                 <!-- Top Openers -->
                 <div class="scm-stats-section">
-                    <h2>Top Email Openers</h2>
+                    <h2>Top 50 Email Openers</h2>
+
                     <?php if (!empty($top_openers)): ?>
                         <table class="wp-list-table widefat fixed striped">
                             <thead>
@@ -861,6 +911,7 @@ class SMTP_Config_Manager
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+
                     <?php else: ?>
                         <p>No email opens recorded yet.</p>
                     <?php endif; ?>
