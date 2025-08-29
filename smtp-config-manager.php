@@ -4,7 +4,7 @@
  * Plugin Name: SMTP Config Manager
  * Plugin URI: https://echbay.com
  * Description: Quản lý cấu hình SMTP cho hệ thống email marketing
- * Version: 1.2.3
+ * Version: 1.2.4
  * Author: Dao Quoc Dai
  * License: GPL v2 or later
  * Text Domain: smtp-config-manager
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('SCM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SCM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('SCM_PLUGIN_VERSION', '1.2.3');
+define('SCM_PLUGIN_VERSION', '1.2.4');
 // Define plugin prefix based on the current host
 define('SCM_PLUGIN_PREFIX', str_replace([
     'www.',

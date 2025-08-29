@@ -132,10 +132,11 @@
 }
 
 #test-output {
-    background: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 10px;
+    /* background: #f9f9f9; */
+    /* border: 1px solid #ddd; */
+    /* border-radius: 3px; */
+    /* padding: 10px; */
+    padding-bottom: 10px;
     font-family: monospace;
     font-size: 12px;
     white-space: pre-wrap;
@@ -638,8 +639,8 @@
     word-wrap: break-word;
     font-size: 12px;
     line-height: 1.4;
-    max-height: 300px;
-    overflow-y: auto;
+    /* max-height: 300px; */
+    /* overflow-y: auto; */
 }
 
 /* Pagination Styling for Tracking Stats */
