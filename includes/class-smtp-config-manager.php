@@ -842,10 +842,47 @@ class SMTP_Config_Manager
                                     <th>Opened At</th>
                                     <th>User Agent</th>
                                     <th>IP Address</th>
+                                    <th>Location</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($recent_opens as $open): ?>
+                                <?php
+                                include __DIR__ . '/geolite2/Reader.php';
+                                include __DIR__ . '/geolite2/Reader/Decoder.php';
+                                include __DIR__ . '/geolite2/Reader/InvalidDatabaseException.php';
+                                include __DIR__ . '/geolite2/Reader/Metadata.php';
+                                include __DIR__ . '/geolite2/Reader/Util.php';
+                                $reader = new MaxMind\Db\Reader(__DIR__ . '/geolite2/GeoLite2-City.mmdb');
+
+                                foreach ($recent_opens as $open) {
+
+                                    // Get location data
+                                    if (strpos($open->ip_address, '192.168.') !== false) {
+                                        $r = [
+                                            'continent' => [
+                                                'names' => [
+                                                    'en' => 'Localhost city',
+                                                ]
+                                            ],
+                                            'country' => [
+                                                'iso_code' => 'NA',
+                                                'names' => [
+                                                    'en' => 'Localhost country',
+                                                ]
+                                            ],
+                                            'location' => [
+                                                'accuracy_radius' => 100,
+                                                'latitude' => 0,
+                                                'longitude' => 0
+                                            ]
+                                        ];
+                                    } else {
+                                        $r = $reader->get($open->ip_address);
+                                        // var_dump($r);
+                                        // print_r($r);
+                                    }
+
+                                ?>
                                     <tr>
                                         <td><?php echo esc_html($open->email); ?></td>
                                         <td><?php echo esc_html($open->name ?: 'N/A'); ?></td>
@@ -860,9 +897,16 @@ class SMTP_Config_Manager
                                         </td>
                                         <td><?php echo esc_html($open->opened_at); ?></td>
                                         <td><?php echo esc_html(substr($open->user_agent, 0, 50)) . (strlen($open->user_agent) > 50 ? '...' : ''); ?></td>
-                                        <td><?php echo esc_html($open->ip_address); ?></td>
+                                        <td><a href="https://www.iplocation.net/ip-lookup?query=<?php echo esc_html($open->ip_address); ?>" target="_blank" rel="nofollow"><?php echo esc_html($open->ip_address); ?></a></td>
+                                        <td><a href="https://www.google.com/maps?q=<?php echo esc_html($r['location']['latitude']); ?>,<?php echo esc_html($r['location']['longitude']); ?>" target="_blank" rel="nofollow"><?php echo esc_html($r['continent']['names']['en']); ?>, <?php echo esc_html($r['country']['iso_code']); ?></a></td>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php
+                                }
+
+                                // 
+                                $reader->close();
+
+                                ?>
                             </tbody>
                         </table>
 
