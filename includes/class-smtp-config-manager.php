@@ -847,6 +847,8 @@ class SMTP_Config_Manager
                             </thead>
                             <tbody>
                                 <?php
+
+                                // Include GeoLite2 database reader
                                 include __DIR__ . '/geolite2/Reader.php';
                                 include __DIR__ . '/geolite2/Reader/Decoder.php';
                                 include __DIR__ . '/geolite2/Reader/InvalidDatabaseException.php';
