@@ -3,6 +3,24 @@ jQuery(document).ready(function ($) {
 	$("#test-smtp").on("click", function (e) {
 		e.preventDefault();
 
+		// Prompt user for test email address
+		var testEmail = prompt(
+			"📧 Enter email address to receive the test email:\n" +
+				"(Leave empty to use admin email)",
+			""
+		);
+
+		// If user cancelled the prompt, exit
+		if (testEmail === null) {
+			return;
+		}
+
+		// Validate email format if provided
+		if (testEmail.trim() !== "" && !isValidEmail(testEmail.trim())) {
+			alert("❌ Please enter a valid email address!");
+			return;
+		}
+
 		var button = $(this);
 		var originalText = button.text();
 		var testResult = $("#test-result");
@@ -18,6 +36,7 @@ jQuery(document).ready(function ($) {
 		var formData = {
 			action: "test_smtp",
 			nonce: scm_ajax.nonce,
+			test_email: testEmail.trim(), // Add custom email to the request
 		};
 
 		// Send AJAX request

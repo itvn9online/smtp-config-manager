@@ -375,7 +375,21 @@ class SMTP_Config_Manager
         }
 
         $smtp_settings = get_smtp_settings();
-        $test_email = get_option('admin_email');
+
+        // Get test email from request or use admin email as fallback
+        $test_email = isset($_POST['test_email']) && !empty(trim($_POST['test_email']))
+            ? sanitize_email(trim($_POST['test_email']))
+            : get_option('admin_email');
+
+        // Validate email
+        if (!is_email($test_email)) {
+            wp_send_json_error(array(
+                'message' => '❌ Invalid email address provided.',
+                'debug' => 'Email validation failed for: ' . $test_email,
+                'html_test' => false
+            ));
+            return;
+        }
 
         $subject = 'SMTP Test Email - HTML Support Test - ' . date('Y-m-d H:i:s');
 
@@ -615,6 +629,11 @@ class SMTP_Config_Manager
         $result = wp_mail($test_email, $subject, $message, $headers);
 
         if ($result) {
+            // Check if custom email was used
+            $email_note = (isset($_POST['test_email']) && !empty(trim($_POST['test_email'])))
+                ? "Custom email address: " . $test_email
+                : "Admin email address: " . $test_email;
+
             wp_send_json_success(array(
                 'message' => '✅ HTML Test Email sent successfully to ' . $test_email . '! 
                 
@@ -624,6 +643,10 @@ class SMTP_Config_Manager
 • Emoji and icon support  
 • Professional email layout
 • Marketing email elements
+
+📬 <strong>Email Delivery:</strong>
+• ' . $email_note . '
+• Please check the inbox and spam folder
 
 🔧 <strong>SMTP Configuration:</strong>
 • Host: ' . $smtp_settings['host'] . '
