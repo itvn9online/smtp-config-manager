@@ -391,7 +391,7 @@ class SMTP_Config_Manager
             return;
         }
 
-        $subject = 'SMTP Test Email - HTML Support Test - ' . date('Y-m-d H:i:s');
+        $subject = '(' . $_SERVER['HTTP_HOST'] . ') SMTP Test Email - HTML Support Test - ' . date('Y-m-d H:i:s');
 
         // Rich HTML content for testing
         $message = '
