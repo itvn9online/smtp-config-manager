@@ -849,12 +849,12 @@ class SMTP_Config_Manager
                                 <?php
 
                                 // Include GeoLite2 database reader
-                                include __DIR__ . '/geolite2/Reader.php';
-                                include __DIR__ . '/geolite2/Reader/Decoder.php';
-                                include __DIR__ . '/geolite2/Reader/InvalidDatabaseException.php';
-                                include __DIR__ . '/geolite2/Reader/Metadata.php';
-                                include __DIR__ . '/geolite2/Reader/Util.php';
-                                $reader = new MaxMind\Db\Reader(__DIR__ . '/geolite2/GeoLite2-City.mmdb');
+                                include SCM_PLUGIN_PATH . 'geolite2/Reader.php';
+                                include SCM_PLUGIN_PATH . 'geolite2/Reader/Decoder.php';
+                                include SCM_PLUGIN_PATH . 'geolite2/Reader/InvalidDatabaseException.php';
+                                include SCM_PLUGIN_PATH . 'geolite2/Reader/Metadata.php';
+                                include SCM_PLUGIN_PATH . 'geolite2/Reader/Util.php';
+                                $reader = new MaxMind\Db\Reader(SCM_PLUGIN_PATH . 'geolite2/GeoLite2-City.mmdb');
 
                                 foreach ($recent_opens as $open) {
 
@@ -863,13 +863,18 @@ class SMTP_Config_Manager
                                         $r = [
                                             'continent' => [
                                                 'names' => [
-                                                    'en' => 'Localhost city',
+                                                    'en' => 'Localhost continent',
                                                 ]
                                             ],
                                             'country' => [
-                                                'iso_code' => 'NA',
+                                                'iso_code' => 'N/A',
                                                 'names' => [
                                                     'en' => 'Localhost country',
+                                                ]
+                                            ],
+                                            'city' => [
+                                                'names' => [
+                                                    'en' => 'Localhost city',
                                                 ]
                                             ],
                                             'location' => [
@@ -880,6 +885,13 @@ class SMTP_Config_Manager
                                         ];
                                     } else {
                                         $r = $reader->get($open->ip_address);
+                                        if (!isset($r['city'])) {
+                                            $r['city'] = [
+                                                'names' => [
+                                                    'en' => 'N/A',
+                                                ]
+                                            ];
+                                        }
                                         // var_dump($r);
                                         // print_r($r);
                                     }
@@ -900,7 +912,7 @@ class SMTP_Config_Manager
                                         <td><?php echo esc_html($open->opened_at); ?></td>
                                         <td><?php echo esc_html(substr($open->user_agent, 0, 50)) . (strlen($open->user_agent) > 50 ? '...' : ''); ?></td>
                                         <td><a href="https://www.iplocation.net/ip-lookup?query=<?php echo esc_html($open->ip_address); ?>" target="_blank" rel="nofollow"><?php echo esc_html($open->ip_address); ?></a></td>
-                                        <td><a href="https://www.google.com/maps?q=<?php echo esc_html($r['location']['latitude']); ?>,<?php echo esc_html($r['location']['longitude']); ?>" target="_blank" rel="nofollow"><?php echo esc_html($r['continent']['names']['en']); ?>, <?php echo esc_html($r['country']['iso_code']); ?></a></td>
+                                        <td><a href="https://www.google.com/maps?q=<?php echo esc_html($r['location']['latitude']); ?>,<?php echo esc_html($r['location']['longitude']); ?>" target="_blank" rel="nofollow"><?php echo esc_html($r['city']['names']['en']); ?>, <?php echo esc_html($r['country']['iso_code']); ?></a></td>
                                     </tr>
                                 <?php
                                 }

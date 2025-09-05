@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 
 // Define plugin constants
 define('SCM_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('SCM_PLUGIN_PATH', plugin_dir_path(__FILE__));
+define('SCM_PLUGIN_PATH', __DIR__ . '/');
 define('SCM_PLUGIN_VERSION', '1.2.4');
 // Define plugin prefix based on the current host
 define('SCM_PLUGIN_PREFIX', str_replace([
