@@ -719,7 +719,7 @@ class SMTP_Config_Manager
         );
 
         // Generate tracking pixel URL
-        $tracking_url = home_url('/api/v1/track/?t=' . $tracking_token);
+        $tracking_url = home_url() . '/wp-content/themes/marketing/api/v1/track/?t=' . $tracking_token;
 
         // Return tracking pixel HTML
         return '<img src="' . $tracking_url . '" width="1" height="1" style="display:none;" alt="">';
