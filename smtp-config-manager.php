@@ -83,7 +83,7 @@ if (strpos($_SERVER['REQUEST_URI'], '/plugins.php') !== false) {
 }
 function smtp_config_manager_settings_link($links)
 {
-    $settings_link = '<a href="' . admin_url('options-general.php?page=smtp-config-manager') . '">' . __('Settings') . '</a>';
+    $settings_link = '<a href="' . admin_url('tools.php?page=smtp-config-manager') . '">' . __('Settings') . '</a>';
     array_unshift($links, $settings_link);
     return $links;
 }

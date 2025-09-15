@@ -22,7 +22,8 @@ class SMTP_Config_Manager
      */
     public function add_admin_menu()
     {
-        add_options_page(
+        add_submenu_page(
+            'tools.php',
             'SMTP Config Manager',
             'SMTP Settings',
             'manage_options',
@@ -62,7 +63,7 @@ class SMTP_Config_Manager
      */
     public function enqueue_scripts($hook)
     {
-        if ($hook !== 'settings_page_smtp-config-manager' && $hook !== 'tools_page_email-tracking-stats') {
+        if ($hook !== 'tools_page_smtp-config-manager' && $hook !== 'tools_page_email-tracking-stats') {
             return;
         }
 
@@ -367,11 +368,11 @@ class SMTP_Config_Manager
     public function test_smtp_connection()
     {
         if (!wp_verify_nonce($_POST['nonce'], 'scm_test_smtp')) {
-            wp_die('Security check failed');
+            wp_die('Security check failed ' . __FUNCTION__);
         }
 
         if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized access');
+            wp_die('Security check failed ' . __FUNCTION__);
         }
 
         $smtp_settings = get_smtp_settings();
@@ -391,7 +392,7 @@ class SMTP_Config_Manager
             return;
         }
 
-        $subject = '(' . $_SERVER['HTTP_HOST'] . ') SMTP Test Email - HTML Support Test - ' . date('Y-m-d H:i:s');
+        $subject = '(' . $_SERVER['HTTP_HOST'] . ') SMTP Test Email - HTML Support Test - ' . current_time('mysql');
 
         // Rich HTML content for testing
         $message = '
@@ -550,7 +551,7 @@ class SMTP_Config_Manager
             
             <div class="feature-box">
                 <h3>⚙️ Technical Information</h3>
-                <p><strong>Test Date:</strong> ' . date('F j, Y \a\t g:i A') . '</p>
+                <p><strong>Test Date:</strong> ' . date_i18n('F j, Y \a\t g:i A') . '</p>
                 <p><strong>SMTP Host:</strong> ' . esc_html($smtp_settings['host']) . '</p>
                 <p><strong>SMTP Port:</strong> ' . esc_html($smtp_settings['port']) . '</p>
                 <p><strong>Encryption:</strong> ' . esc_html(strtoupper($smtp_settings['encryption'])) . '</p>
@@ -558,7 +559,7 @@ class SMTP_Config_Manager
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-                <a href="' . admin_url('admin.php?page=smtp-config-manager') . '" class="btn">
+                <a href="' . admin_url('tools.php?page=smtp-config-manager') . '" class="btn">
                     🔧 Back to SMTP Settings
                 </a>
             </div>
