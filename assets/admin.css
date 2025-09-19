@@ -309,7 +309,7 @@
 
 /* Email Tracking Stats Styles */
 .scm-stats-container {
-    max-width: 1200px;
+    /* max-width: 1200px; */
 }
 
 .scm-stats-overview {
@@ -397,9 +397,13 @@
     margin-right: 2px;
 }
 
+.is-hidden-text {
+    color: transparent !important;
+}
+
 /* Stats container */
 .scm-stats-container {
-    max-width: 1200px;
+    /* max-width: 1200px; */
 }
 
 /* Stats overview */

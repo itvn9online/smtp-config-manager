@@ -73,7 +73,8 @@ class SMTP_Config_Manager
 
         wp_localize_script('scm-admin-js', 'scm_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('scm_test_smtp')
+            'nonce' => wp_create_nonce('scm_test_smtp'),
+            // 'plugin_prefix' => SCM_PLUGIN_PREFIX
         ));
     }
 
@@ -93,6 +94,7 @@ class SMTP_Config_Manager
         $smtp_settings = get_smtp_settings();
 ?>
         <script>
+            // Define SCM_PLUGIN_PREFIX for JavaScript compatibility
             let SCM_PLUGIN_PREFIX = '<?php echo SCM_PLUGIN_PREFIX; ?>';
         </script>
         <div class="wrap">
@@ -141,7 +143,7 @@ class SMTP_Config_Manager
                             <tr>
                                 <th scope="row">Password</th>
                                 <td>
-                                    <input type="password" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_password" value="<?php echo esc_attr($smtp_settings['password']); ?>" class="regular-text" required>
+                                    <input type="text" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_password" value="<?php echo esc_attr($smtp_settings['password']); ?>" class="regular-text is-hidden-text" required>
                                     <p class="description">SMTP password or app password</p>
                                 </td>
                             </tr>
@@ -804,6 +806,10 @@ class SMTP_Config_Manager
         ");
 
     ?>
+        <script>
+            // Define SCM_PLUGIN_PREFIX for JavaScript compatibility
+            let SCM_PLUGIN_PREFIX = '<?php echo SCM_PLUGIN_PREFIX; ?>';
+        </script>
         <div class="wrap">
             <h1>Email Tracking Statistics</h1>
 

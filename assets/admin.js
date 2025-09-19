@@ -218,11 +218,11 @@ jQuery(document).ready(function ($) {
 			);
 			var button = $(this);
 
-			if (passwordField.attr("type") === "password") {
-				passwordField.attr("type", "text");
+			if (passwordField.hasClass("is-hidden-text")) {
+				passwordField.removeClass("is-hidden-text");
 				button.text("Hide");
 			} else {
-				passwordField.attr("type", "password");
+				passwordField.addClass("is-hidden-text");
 				button.text("Show");
 			}
 		});
