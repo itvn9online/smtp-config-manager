@@ -1,0 +1,162 @@
+/* Gmail API Admin Styles */
+.scm-email-method-selection {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.scm-email-method-option {
+    display: block;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.scm-email-method-option:hover {
+    background: #f0f0f0;
+    border-color: #0073aa;
+}
+
+.scm-email-method-option input[type="radio"] {
+    margin-right: 8px;
+}
+
+.scm-gmail-settings {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.scm-gmail-auth-status {
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.scm-gmail-auth-status.authenticated {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.scm-gmail-auth-status.not-authenticated {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.scm-gmail-setup-steps {
+    background: #e7f3ff;
+    border: 1px solid #bee5eb;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.scm-gmail-setup-steps h4 {
+    margin-top: 0;
+    color: #0c5460;
+}
+
+.scm-gmail-setup-steps ol {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.scm-gmail-setup-steps li {
+    margin-bottom: 8px;
+}
+
+.scm-gmail-credentials-form table {
+    width: 100%;
+}
+
+.scm-gmail-credentials-form .form-table th {
+    width: 150px;
+    font-weight: 600;
+}
+
+.scm-gmail-credentials-form .form-table td input[type="text"] {
+    width: 400px;
+}
+
+.scm-gmail-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.scm-gmail-actions .button {
+    margin-right: 10px;
+}
+
+.button.button-gmail-auth {
+    background: #4285f4;
+    border-color: #4285f4;
+    color: #fff;
+}
+
+.button.button-gmail-auth:hover {
+    background: #3367d6;
+    border-color: #3367d6;
+}
+
+.button.button-gmail-test {
+    background: #34a853;
+    border-color: #34a853;
+    color: #fff;
+}
+
+.button.button-gmail-test:hover {
+    background: #2e7d32;
+    border-color: #2e7d32;
+}
+
+.scm-test-result {
+    margin-top: 15px;
+    padding: 10px 15px;
+    border-radius: 3px;
+    display: none;
+}
+
+.scm-test-result.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.scm-test-result.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.scm-loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 8px;
+    background: url('data:image/gif;base64,R0lGODlhEAAQAPIAAP///wAAAMLCwkJCQgAAAGJiYoKCgpKSkiH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAEAAQAAADMwi63P4wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAAAzYIujIjK8pByJDMlFYvBoVjHA70GU7xSUJhmKtwHPAKzLO9HMaoKwJZ7Rf8AYPDDzKpZBqfvwQAIfkECQoAAAAsAAAAABAAEAAAAzMIumIlK8oyhpHsnFZfhYumCYUhDAQxRIdhHBGqRoKw0R8DYlJd8z0fMDgsGo/IpHI5TAAAIfkECQoAAAAsAAAAABAAEAAAAzIIunInK0rnlBaRsTMFle+kDZiJEXCEpLKwCjOmrqJhNBhUhxQGh5T1GkXSdIgKa1lkGQ==') no-repeat;
+}
+
+/* Responsive styles */
+@media (max-width: 782px) {
+    .scm-gmail-credentials-form .form-table td input[type="text"] {
+        width: 100%;
+    }
+
+    .scm-gmail-actions .button {
+        display: block;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+}

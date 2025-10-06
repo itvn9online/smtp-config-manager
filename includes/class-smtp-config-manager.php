@@ -12,6 +12,7 @@ class SMTP_Config_Manager
         add_action('admin_init', array($this, 'admin_init'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
         add_action('wp_ajax_test_smtp', array($this, 'test_smtp_connection'));
+        add_action('wp_ajax_test_gmail_api', array($this, 'test_gmail_api_connection'));
 
         // Initialize tracking table on activation
         register_activation_hook(SCM_PLUGIN_PATH . 'smtp-config-manager.php', array($this, 'create_tracking_table'));
@@ -56,6 +57,17 @@ class SMTP_Config_Manager
         register_setting('scm_smtp_settings', SCM_PLUGIN_PREFIX . 'scm_smtp_from_name');
         register_setting('scm_smtp_settings', SCM_PLUGIN_PREFIX . 'scm_smtp_debug');
         register_setting('scm_smtp_settings', SCM_PLUGIN_PREFIX . 'scm_smtp_enabled');
+
+        // Gmail API settings
+        register_setting('scm_smtp_settings', SCM_PLUGIN_PREFIX . 'scm_email_method');
+        register_setting('scm_smtp_settings', SCM_PLUGIN_PREFIX . 'gmail_client_id');
+        register_setting('scm_smtp_settings', SCM_PLUGIN_PREFIX . 'gmail_client_secret');
+        register_setting('scm_smtp_settings', SCM_PLUGIN_PREFIX . 'gmail_authenticated');
+
+        // Xử lý Gmail OAuth callback
+        if (isset($_GET['action']) && $_GET['action'] === 'gmail_callback' && isset($_GET['code'])) {
+            $this->handle_gmail_callback();
+        }
     }
 
     /**
@@ -71,11 +83,28 @@ class SMTP_Config_Manager
         wp_enqueue_script('scm-admin-js', SCM_PLUGIN_URL . 'assets/admin.js', array('jquery'), filemtime(SCM_PLUGIN_PATH . 'assets/admin.js'), true);
         wp_enqueue_style('scm-admin-css', SCM_PLUGIN_URL . 'assets/admin.css', array(), filemtime(SCM_PLUGIN_PATH . 'assets/admin.css'));
 
+        // Gmail API assets
+        if (file_exists(SCM_PLUGIN_PATH . 'assets/gmail-api-admin.js')) {
+            wp_enqueue_script('scm-gmail-admin-js', SCM_PLUGIN_URL . 'assets/gmail-api-admin.js', array('jquery'), filemtime(SCM_PLUGIN_PATH . 'assets/gmail-api-admin.js'), true);
+        }
+        if (file_exists(SCM_PLUGIN_PATH . 'assets/gmail-api-admin.css')) {
+            wp_enqueue_style('scm-gmail-admin-css', SCM_PLUGIN_URL . 'assets/gmail-api-admin.css', array(), filemtime(SCM_PLUGIN_PATH . 'assets/gmail-api-admin.css'));
+        }
+
         wp_localize_script('scm-admin-js', 'scm_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('scm_test_smtp'),
             // 'plugin_prefix' => SCM_PLUGIN_PREFIX
         ));
+
+        // Gmail API AJAX nonce
+        if (wp_script_is('scm-gmail-admin-js', 'enqueued')) {
+            wp_localize_script('scm-gmail-admin-js', 'scmGmailAjax', array(
+                'nonce' => wp_create_nonce('scm_gmail_ajax'),
+                'test_nonce' => wp_create_nonce('scm_test_gmail_api'),
+                'ajax_url' => admin_url('admin-ajax.php')
+            ));
+        }
     }
 
     /**
@@ -92,6 +121,7 @@ class SMTP_Config_Manager
         $this->display_admin_notices();
 
         $smtp_settings = get_smtp_settings();
+        $gmail_settings = $this->get_gmail_settings();
 ?>
         <script>
             // Define SCM_PLUGIN_PREFIX for JavaScript compatibility
@@ -105,95 +135,184 @@ class SMTP_Config_Manager
                     <form method="post" action="">
                         <?php wp_nonce_field('scm_save_settings', 'scm_nonce'); ?>
 
-                        <table class="form-table smtp-setting-table">
+                        <!-- Email Method Selection -->
+                        <h2>📧 Email Sending Method</h2>
+                        <table class="form-table">
                             <tr>
-                                <th scope="row">Enable SMTP</th>
+                                <th scope="row">Phương thức gửi email</th>
                                 <td>
                                     <label>
-                                        <input type="checkbox" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_enabled" value="1" <?php checked($smtp_settings['enabled'], '1'); ?>>
-                                        Enable SMTP for email sending
+                                        <input type="radio" name="scm_email_method" value="smtp" <?php checked($gmail_settings['email_method'], 'smtp'); ?>>
+                                        SMTP (Traditional)
+                                    </label><br>
+                                    <label>
+                                        <input type="radio" name="scm_email_method" value="gmail_api" <?php checked($gmail_settings['email_method'], 'gmail_api'); ?>>
+                                        Gmail API (Khuyên dùng - ổn định hơn)
                                     </label>
+                                    <p class="description">Gmail API thường có độ tin cậy và tỷ lệ gửi thành công cao hơn SMTP truyền thống.</p>
                                 </td>
                             </tr>
+                        </table>
 
-                            <tr>
-                                <th scope="row">SMTP Host</th>
-                                <td>
-                                    <input type="text" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_host" value="<?php echo esc_attr($smtp_settings['host']); ?>" class="regular-text" required>
-                                    <p class="description">SMTP server address (e.g., smtp.gmail.com)</p>
-                                </td>
-                            </tr>
+                        <!-- Gmail API Settings -->
+                        <div id="gmail-api-settings" style="display: <?php echo $gmail_settings['email_method'] === 'gmail_api' ? 'block' : 'none'; ?>;">
+                            <h2>🔧 Gmail API Configuration</h2>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">Google Client ID</th>
+                                    <td>
+                                        <input type="text" name="gmail_client_id" value="<?php echo esc_attr($gmail_settings['client_id']); ?>" class="regular-text">
+                                        <p class="description">Lấy từ <a href="https://console.developers.google.com" target="_blank">Google Cloud Console</a></p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Google Client Secret</th>
+                                    <td>
+                                        <input type="text" name="gmail_client_secret" value="<?php echo esc_attr($gmail_settings['client_secret']); ?>" class="regular-text" style="color: transparent;">
+                                        <p class="description">Client secret từ Google Cloud Console</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Google Refresh Token</th>
+                                    <td>
+                                        <input type="text" name="gmail_refresh_token" value="<?php echo esc_attr($gmail_settings['refresh_token']); ?>" class="regular-text" style="color: transparent;">
+                                        <p class="description">Refresh token từ Google OAuth (tùy chọn - sẽ được tự động tạo khi authorize)</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Trạng thái Authorization</th>
+                                    <td>
+                                        <?php if ($gmail_settings['authenticated'] === '1'): ?>
+                                            <span style="color: #46b450;">✅ Đã được ủy quyền</span>
+                                            <a href="#" id="gmail-reauth" class="button button-secondary">Ủy quyền lại</a>
+                                        <?php else: ?>
+                                            <span style="color: #dc3232;">❌ Chưa ủy quyền</span>
+                                            <a href="#" id="gmail-authorize" class="button button-primary">Ủy quyền Gmail API</a>
+                                        <?php endif; ?>
+                                        <p class="description">Cần ủy quyền tài khoản Google để gửi email qua Gmail API</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Redirect URI</th>
+                                    <td>
+                                        <input type="text" value="<?php echo admin_url('tools.php?page=smtp-config-manager&action=gmail_callback'); ?>" class="large-text" readonly onclick="this.select();">
+                                        <p class="description">Copy URL này và thêm vào Google Cloud Console project như một authorized redirect URI</p>
+                                    </td>
+                                </tr>
+                            </table>
 
-                            <tr>
-                                <th scope="row">SMTP Port</th>
-                                <td>
-                                    <input type="number" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_port" value="<?php echo esc_attr($smtp_settings['port']); ?>" class="small-text" min="1" max="65535" required>
-                                    <p class="description">Common ports: 25, 465 (SSL), 587 (TLS)</p>
-                                </td>
-                            </tr>
+                            <div style="background: #e7f3ff; padding: 15px; border-left: 4px solid #0073aa; margin: 15px 0;">
+                                <h4>🔧 Hướng dẫn setup Gmail API:</h4>
+                                <ol>
+                                    <li>Truy cập <a href="https://console.developers.google.com" target="_blank">Google Cloud Console</a></li>
+                                    <li>Tạo project mới hoặc chọn project có sẵn</li>
+                                    <li>Enable Gmail API cho project</li>
+                                    <li>Tạo OAuth 2.0 credentials (Application type: Web application)</li>
+                                    <li>Thêm Redirect URI ở trên vào OAuth client</li>
+                                    <li>Copy Client ID và Client Secret vào form</li>
+                                    <li>Lưu settings và click "Ủy quyền Gmail API"</li>
+                                </ol>
+                            </div>
+                        </div>
 
-                            <tr>
-                                <th scope="row">Username</th>
-                                <td>
-                                    <input type="text" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_username" value="<?php echo esc_attr($smtp_settings['username']); ?>" class="regular-text" required>
-                                    <p class="description">SMTP username (usually your email address)</p>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <th scope="row">Password</th>
-                                <td>
-                                    <input type="text" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_password" value="<?php echo esc_attr($smtp_settings['password']); ?>" class="regular-text is-hidden-text" required>
-                                    <p class="description">SMTP password or app password</p>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <th scope="row">Encryption</th>
-                                <td>
-                                    <select name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_encryption">
-                                        <option value="none" <?php selected($smtp_settings['encryption'], 'none'); ?>>None</option>
-                                        <option value="tls" <?php selected($smtp_settings['encryption'], 'tls'); ?>>TLS</option>
-                                        <option value="ssl" <?php selected($smtp_settings['encryption'], 'ssl'); ?>>SSL</option>
-                                    </select>
-                                    <p class="description">Use TLS for port 587, SSL for port 465</p>
-                                </td>
-                            </tr>
-
+                        <!-- Common Email Settings (Used by both SMTP and Gmail API) -->
+                        <h2>📤 Common Email Settings</h2>
+                        <table class="form-table">
                             <tr>
                                 <th scope="row">From Email</th>
                                 <td>
-                                    <input type="email" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_from_email" value="<?php echo esc_attr($smtp_settings['from_email']); ?>" class="regular-text" required>
-                                    <p class="description">Email address to send from</p>
+                                    <input type="email" name="scm_smtp_from_email" value="<?php echo esc_attr($smtp_settings['from_email']); ?>" class="regular-text">
+                                    <p class="description">Email address to send from (used by both SMTP and Gmail API)</p>
                                 </td>
                             </tr>
 
                             <tr>
                                 <th scope="row">From Name</th>
                                 <td>
-                                    <input type="text" name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_from_name" value="<?php echo esc_attr($smtp_settings['from_name']); ?>" class="regular-text" required>
-                                    <p class="description">Name to display as sender</p>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <th scope="row">Debug Level</th>
-                                <td>
-                                    <select name="<?php echo SCM_PLUGIN_PREFIX; ?>scm_smtp_debug">
-                                        <option value="0" <?php selected($smtp_settings['debug'], '0'); ?>>Disabled</option>
-                                        <option value="1" <?php selected($smtp_settings['debug'], '1'); ?>>Client messages</option>
-                                        <option value="2" <?php selected($smtp_settings['debug'], '2'); ?>>Client and server messages</option>
-                                        <option value="3" <?php selected($smtp_settings['debug'], '3'); ?>>Connection status</option>
-                                        <option value="4" <?php selected($smtp_settings['debug'], '4'); ?>>Low-level data</option>
-                                    </select>
-                                    <p class="description">Debug level for troubleshooting (0 = off)</p>
+                                    <input type="text" name="scm_smtp_from_name" value="<?php echo esc_attr($smtp_settings['from_name']); ?>" class="regular-text">
+                                    <p class="description">Name to display as sender (used by both SMTP and Gmail API)</p>
                                 </td>
                             </tr>
                         </table>
 
+                        <!-- SMTP Settings -->
+                        <div id="smtp-settings" style="display: <?php echo $gmail_settings['email_method'] !== 'gmail_api' ? 'block' : 'none'; ?>;">
+                            <h2>🔧 SMTP Configuration</h2>
+                            <table class="form-table smtp-setting-table">
+                                <tr>
+                                    <th scope="row">Enable SMTP</th>
+                                    <td>
+                                        <label>
+                                            <input type="checkbox" name="scm_smtp_enabled" value="1" <?php checked($smtp_settings['enabled'], '1'); ?>>
+                                            Enable SMTP for email sending
+                                        </label>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">SMTP Host</th>
+                                    <td>
+                                        <input type="text" name="scm_smtp_host" value="<?php echo esc_attr($smtp_settings['host']); ?>" class="regular-text">
+                                        <p class="description">SMTP server address (e.g., smtp.gmail.com)</p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">SMTP Port</th>
+                                    <td>
+                                        <input type="number" name="scm_smtp_port" value="<?php echo esc_attr($smtp_settings['port']); ?>" class="small-text" min="1" max="65535">
+                                        <p class="description">Common ports: 25, 465 (SSL), 587 (TLS)</p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">Username</th>
+                                    <td>
+                                        <input type="text" name="scm_smtp_username" value="<?php echo esc_attr($smtp_settings['username']); ?>" class="regular-text">
+                                        <p class="description">SMTP username (usually your email address)</p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">Password</th>
+                                    <td>
+                                        <input type="password" name="scm_smtp_password" value="<?php echo esc_attr($smtp_settings['password']); ?>" class="regular-text">
+                                        <p class="description">SMTP password or app password</p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">Encryption</th>
+                                    <td>
+                                        <select name="scm_smtp_encryption">
+                                            <option value="none" <?php selected($smtp_settings['encryption'], 'none'); ?>>None</option>
+                                            <option value="tls" <?php selected($smtp_settings['encryption'], 'tls'); ?>>TLS</option>
+                                            <option value="ssl" <?php selected($smtp_settings['encryption'], 'ssl'); ?>>SSL</option>
+                                        </select>
+                                        <p class="description">Use TLS for port 587, SSL for port 465</p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">Debug Level</th>
+                                    <td>
+                                        <select name="scm_smtp_debug">
+                                            <option value="0" <?php selected($smtp_settings['debug'], '0'); ?>>Disabled</option>
+                                            <option value="1" <?php selected($smtp_settings['debug'], '1'); ?>>Client messages</option>
+                                            <option value="2" <?php selected($smtp_settings['debug'], '2'); ?>>Client and server messages</option>
+                                            <option value="3" <?php selected($smtp_settings['debug'], '3'); ?>>Connection status</option>
+                                            <option value="4" <?php selected($smtp_settings['debug'], '4'); ?>>Low-level data</option>
+                                        </select>
+                                        <p class="description">Debug level for troubleshooting (0 = off)</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div> <!-- Close SMTP settings div -->
+
                         <p class="submit">
                             <input type="submit" name="submit" class="button-primary" value="Save Settings">
-                            <button type="button" id="test-smtp" class="button button-secondary">Test SMTP Connection</button>
+                            <button type="button" id="test-smtp" class="button button-secondary" style="display: none;">Test SMTP Connection</button>
+                            <button type="button" id="test-gmail-api" class="button button-secondary" style="display: none;">Test Gmail API</button>
                         </p>
                     </form>
 
@@ -201,6 +320,8 @@ class SMTP_Config_Manager
                         <h3 style="padding-top: 8px;">Test Result</h3>
                         <div id="test-output"></div>
                     </div>
+
+
                 </div>
 
                 <div class="scm-sidebar">
@@ -330,19 +451,28 @@ class SMTP_Config_Manager
 
         $prefix = SCM_PLUGIN_PREFIX;
         $fields = array(
-            $prefix . 'scm_smtp_enabled' => isset($_POST[$prefix . 'scm_smtp_enabled']) ? '1' : '0',
-            $prefix . 'scm_smtp_host' => sanitize_text_field($_POST[$prefix . 'scm_smtp_host']),
-            $prefix . 'scm_smtp_port' => sanitize_text_field($_POST[$prefix . 'scm_smtp_port']),
-            $prefix . 'scm_smtp_username' => sanitize_text_field($_POST[$prefix . 'scm_smtp_username']),
-            $prefix . 'scm_smtp_password' => $this->encode_password(sanitize_text_field($_POST[$prefix . 'scm_smtp_password'])),
-            $prefix . 'scm_smtp_encryption' => sanitize_text_field($_POST[$prefix . 'scm_smtp_encryption']),
-            $prefix . 'scm_smtp_from_email' => sanitize_email($_POST[$prefix . 'scm_smtp_from_email']),
-            $prefix . 'scm_smtp_from_name' => sanitize_text_field($_POST[$prefix . 'scm_smtp_from_name']),
-            $prefix . 'scm_smtp_debug' => sanitize_text_field($_POST[$prefix . 'scm_smtp_debug'])
+            // Email method selection
+            'scm_email_method' => isset($_POST['scm_email_method']) ? sanitize_text_field($_POST['scm_email_method']) : 'smtp',
+
+            // SMTP settings
+            'scm_smtp_enabled' => isset($_POST['scm_smtp_enabled']) ? '1' : '0',
+            'scm_smtp_host' => isset($_POST['scm_smtp_host']) ? sanitize_text_field($_POST['scm_smtp_host']) : '',
+            'scm_smtp_port' => isset($_POST['scm_smtp_port']) ? sanitize_text_field($_POST['scm_smtp_port']) : '587',
+            'scm_smtp_username' => isset($_POST['scm_smtp_username']) ? sanitize_text_field($_POST['scm_smtp_username']) : '',
+            'scm_smtp_password' => isset($_POST['scm_smtp_password']) ? $this->encode_password(sanitize_text_field($_POST['scm_smtp_password'])) : '',
+            'scm_smtp_encryption' => isset($_POST['scm_smtp_encryption']) ? sanitize_text_field($_POST['scm_smtp_encryption']) : 'tls',
+            'scm_smtp_from_email' => isset($_POST['scm_smtp_from_email']) ? sanitize_email($_POST['scm_smtp_from_email']) : '',
+            'scm_smtp_from_name' => isset($_POST['scm_smtp_from_name']) ? sanitize_text_field($_POST['scm_smtp_from_name']) : '',
+            'scm_smtp_debug' => isset($_POST['scm_smtp_debug']) ? sanitize_text_field($_POST['scm_smtp_debug']) : '0',
+
+            // Gmail API settings
+            'gmail_client_id' => isset($_POST['gmail_client_id']) ? sanitize_text_field($_POST['gmail_client_id']) : '',
+            'gmail_client_secret' => isset($_POST['gmail_client_secret']) ? sanitize_text_field($_POST['gmail_client_secret']) : '',
+            'gmail_refresh_token' => isset($_POST['gmail_refresh_token']) ? sanitize_text_field($_POST['gmail_refresh_token']) : ''
         );
 
         foreach ($fields as $field => $value) {
-            update_option($field, $value);
+            update_option($prefix . $field, $value);
         }
 
         add_settings_error('scm_messages', 'scm_message', 'Settings saved successfully!', 'success');
@@ -1043,5 +1173,80 @@ class SMTP_Config_Manager
             </div>
         </div>
 <?php
+    }
+
+    /**
+     * Lấy Gmail API settings
+     */
+    private function get_gmail_settings()
+    {
+        return array(
+            'email_method' => get_option(SCM_PLUGIN_PREFIX . 'scm_email_method', 'smtp'),
+            'client_id' => get_option(SCM_PLUGIN_PREFIX . 'gmail_client_id'),
+            'client_secret' => get_option(SCM_PLUGIN_PREFIX . 'gmail_client_secret'),
+            'refresh_token' => get_option(SCM_PLUGIN_PREFIX . 'gmail_refresh_token'),
+            'authenticated' => get_option(SCM_PLUGIN_PREFIX . 'gmail_authenticated', '0')
+        );
+    }
+
+    /**
+     * Xử lý Gmail OAuth callback
+     */
+    private function handle_gmail_callback()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        $auth_code = sanitize_text_field($_GET['code']);
+
+        $gmail_service = new Gmail_API_Native_Service();
+        $success = $gmail_service->handle_callback($auth_code);
+
+        if ($success) {
+            update_option(SCM_PLUGIN_PREFIX . 'gmail_authenticated', '1');
+            wp_redirect(admin_url('tools.php?page=smtp-config-manager&gmail_auth=success'));
+        } else {
+            wp_redirect(admin_url('tools.php?page=smtp-config-manager&gmail_auth=error'));
+        }
+        exit;
+    }
+
+    /**
+     * Test Gmail API connection via AJAX
+     */
+    public function test_gmail_api_connection()
+    {
+        if (!wp_verify_nonce($_POST['nonce'], 'scm_test_gmail_api')) {
+            wp_die('Security check failed');
+        }
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        try {
+            // Get test email from request or use admin email as fallback
+            $test_email = isset($_POST['test_email']) && !empty(trim($_POST['test_email']))
+                ? sanitize_email(trim($_POST['test_email']))
+                : null;
+
+            // Validate email if provided
+            if ($test_email && !is_email($test_email)) {
+                wp_send_json_error('Invalid email address provided.');
+                return;
+            }
+
+            $gmail_service = new Gmail_API_Native_Service();
+            $result = $gmail_service->test_connection($test_email);
+
+            if ($result['success']) {
+                wp_send_json_success($result);
+            } else {
+                wp_send_json_error($result['message']);
+            }
+        } catch (Exception $e) {
+            wp_send_json_error('Gmail API test failed: ' . $e->getMessage());
+        }
     }
 }

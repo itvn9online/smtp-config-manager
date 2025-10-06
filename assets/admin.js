@@ -1,4 +1,10 @@
 jQuery(document).ready(function ($) {
+	// Email validation function (used for prompt validation)
+	function isValidEmail(email) {
+		var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		return emailRegex.test(email);
+	}
+
 	// Test SMTP connection
 	$("#test-smtp").on("click", function (e) {
 		e.preventDefault();
@@ -150,72 +156,47 @@ jQuery(document).ready(function ($) {
 		});
 	});
 
-	// Form validation
+	// Unified form submission handler (validation + confirmation)
+	var originalFormData = $("form").serialize();
+
 	$("form").on("submit", function (e) {
-		var valid = true;
-		var errors = [];
+		var form = $(this);
 
-		// Check required fields
-		var requiredFields = [
-			{ field: "scm_smtp_host", name: "SMTP Host" },
-			{ field: "scm_smtp_port", name: "SMTP Port" },
-			{ field: "scm_smtp_username", name: "Username" },
-			{ field: "scm_smtp_password", name: "Password" },
-			{ field: "scm_smtp_from_email", name: "From Email" },
-			{ field: "scm_smtp_from_name", name: "From Name" },
-		];
+		// 1. Custom validation (rely on HTML5 required attributes for basic validation)
+		// Only do advanced validation that HTML5 can't handle
 
-		requiredFields.forEach(function (item) {
-			var value = $('input[name="' + item.field + '"]')
-				.val()
-				.trim();
-			if (!value) {
-				errors.push(item.name + " is required");
-				valid = false;
+		// Validate port number range (HTML5 number input doesn't enforce range)
+		var portField = $('input[name="scm_smtp_port"]');
+		if (portField.length) {
+			var port = parseInt(portField.val());
+			if (!isNaN(port) && (port < 1 || port > 65535)) {
+				e.preventDefault();
+				alert("Port must be a number between 1 and 65535");
+				portField.focus();
+				return false;
 			}
-		});
-
-		// Validate email format
-		var fromEmail = $(
-			'input[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_from_email"]'
-		)
-			.val()
-			.trim();
-		if (fromEmail && !isValidEmail(fromEmail)) {
-			errors.push("From Email must be a valid email address");
-			valid = false;
 		}
 
-		// Validate port number
-		var port = parseInt(
-			$('input[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_port"]').val()
-		);
-		if (isNaN(port) || port < 1 || port > 65535) {
-			errors.push("Port must be a number between 1 and 65535");
-			valid = false;
+		// 2. Save confirmation (only if data changed)
+		var currentFormData = form.serialize();
+		if (originalFormData !== currentFormData) {
+			if (!confirm("Are you sure you want to save these SMTP settings?")) {
+				e.preventDefault();
+				return false;
+			}
 		}
 
-		if (!valid) {
-			e.preventDefault();
-			alert("Please fix the following errors:\n\n" + errors.join("\n"));
-		}
+		// All checks passed, allow form submission
+		return true;
 	});
-
-	// Email validation function
-	function isValidEmail(email) {
-		var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		return emailRegex.test(email);
-	}
 
 	// Toggle password visibility
 	$(
 		'<button type="button" class="button button-small" style="margin-left: 5px;">Show</button>'
 	)
-		.insertAfter('input[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_password"]')
+		.insertAfter('input[name="scm_smtp_password"]')
 		.on("click", function () {
-			var passwordField = $(
-				'input[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_password"]'
-			);
+			var passwordField = $('input[name="scm_smtp_password"]');
 			var button = $(this);
 
 			if (passwordField.hasClass("is-hidden-text")) {
@@ -228,45 +209,26 @@ jQuery(document).ready(function ($) {
 		});
 
 	// Port and encryption suggestions
-	$('select[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_encryption"]').on(
-		"change",
-		function () {
-			var encryption = $(this).val();
-			var portField = $('input[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_port"]');
+	$('select[name="scm_smtp_encryption"]').on("change", function () {
+		var encryption = $(this).val();
+		var portField = $('input[name="scm_smtp_port"]');
 
-			if (encryption === "tls" && portField.val() === "465") {
-				portField.val("587");
-			} else if (encryption === "ssl" && portField.val() === "587") {
-				portField.val("465");
-			}
+		if (encryption === "tls" && portField.val() === "465") {
+			portField.val("587");
+		} else if (encryption === "ssl" && portField.val() === "587") {
+			portField.val("465");
 		}
-	);
+	});
 
-	$('input[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_port"]').on(
-		"change",
-		function () {
-			var port = $(this).val();
-			var encryptionField = $(
-				'select[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_encryption"]'
-			);
+	$('input[name="scm_smtp_port"]').on("change", function () {
+		var port = $(this).val();
+		var encryptionField = $('select[name="scm_smtp_encryption"]');
 
-			if (port === "587" && encryptionField.val() === "ssl") {
-				encryptionField.val("tls");
-			} else if (port === "465" && encryptionField.val() === "tls") {
-				encryptionField.val("ssl");
-			}
+		if (port === "587" && encryptionField.val() === "ssl") {
+			encryptionField.val("tls");
+		} else if (port === "465" && encryptionField.val() === "tls") {
+			encryptionField.val("ssl");
 		}
-	);
-
-	// Save settings confirmation
-	var originalFormData = $("form").serialize();
-
-	$("form").on("submit", function () {
-		var currentFormData = $(this).serialize();
-		if (originalFormData !== currentFormData) {
-			return confirm("Are you sure you want to save these SMTP settings?");
-		}
-		return true;
 	});
 
 	// Show/hide advanced settings
@@ -275,15 +237,11 @@ jQuery(document).ready(function ($) {
 	).insertAfter(".smtp-setting-table");
 
 	// Hide debug setting by default
-	$('select[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_debug"]')
-		.closest("tr")
-		.hide();
+	$('select[name="scm_smtp_debug"]').closest("tr").hide();
 
 	$("#toggle-advanced").on("click", function (e) {
 		e.preventDefault();
-		var debugRow = $(
-			'select[name="' + SCM_PLUGIN_PREFIX + 'scm_smtp_debug"]'
-		).closest("tr");
+		var debugRow = $('select[name="scm_smtp_debug"]').closest("tr");
 		var link = $(this);
 
 		if (debugRow.is(":visible")) {
@@ -309,9 +267,7 @@ jQuery(document).ready(function ($) {
 	$("#preview-email").on("click", function (e) {
 		e.preventDefault();
 
-		var subject = $(
-			'input[name="' + SCM_PLUGIN_PREFIX + 'scm_email_subject"]'
-		).val();
+		var subject = $('input[name="scm_email_subject"]').val();
 		var content = "";
 
 		// Get content from TinyMCE if available
@@ -372,9 +328,7 @@ jQuery(document).ready(function ($) {
 		var formData = {
 			action: "send_test_email",
 			nonce: scm_ajax.nonce,
-			subject: $(
-				'input[name="' + SCM_PLUGIN_PREFIX + 'scm_email_subject"]'
-			).val(),
+			subject: $('input[name="scm_email_subject"]').val(),
 			content: content,
 		};
 

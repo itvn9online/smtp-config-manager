@@ -27,6 +27,9 @@ define('SCM_PLUGIN_PREFIX', str_replace([
 ], '', explode(':', $_SERVER['HTTP_HOST'])[0]) . '_');
 // die(SCM_PLUGIN_PREFIX);
 
+// Include Gmail API native service
+require_once SCM_PLUGIN_PATH . 'includes/class-gmail-api-native.php';
+
 // Include required files
 require_once SCM_PLUGIN_PATH . 'includes/class-smtp-config-manager.php';
 
@@ -104,66 +107,112 @@ function get_smtp_settings()
     );
 }
 
-// Configure WordPress mail to use SMTP settings
+// Configure WordPress mail to use SMTP or Gmail API settings
 function configure_wp_mail_smtp()
 {
-    $smtp_settings = get_smtp_settings();
+    $email_method = get_option(SCM_PLUGIN_PREFIX . 'scm_email_method', 'smtp');
 
-    if ($smtp_settings['enabled'] == '1') {
-        add_filter('phpmailer_init', function ($phpmailer) use ($smtp_settings) {
-            $phpmailer->isSMTP();
-            $phpmailer->Host = $smtp_settings['host'];
-            $phpmailer->SMTPAuth = true;
-            $phpmailer->Username = $smtp_settings['username'];
-            $phpmailer->Password = $smtp_settings['password'];
-            $phpmailer->Port = $smtp_settings['port'];
+    if ($email_method === 'gmail_api') {
+        // Use Gmail API for sending emails
+        add_filter('pre_wp_mail', 'send_email_via_gmail_api', 10, 2);
+    } else {
+        // Use SMTP settings
+        $smtp_settings = get_smtp_settings();
 
-            if ($smtp_settings['encryption'] == 'tls') {
-                $phpmailer->SMTPSecure = 'tls';
-            } elseif ($smtp_settings['encryption'] == 'ssl') {
-                $phpmailer->SMTPSecure = 'ssl';
-            }
+        if ($smtp_settings['enabled'] == '1') {
+            add_filter('phpmailer_init', function ($phpmailer) use ($smtp_settings) {
+                $phpmailer->isSMTP();
+                $phpmailer->Host = $smtp_settings['host'];
+                $phpmailer->SMTPAuth = true;
+                $phpmailer->Username = $smtp_settings['username'];
+                $phpmailer->Password = $smtp_settings['password'];
+                $phpmailer->Port = $smtp_settings['port'];
 
-            // Enable HTML support for all emails
-            $phpmailer->isHTML(true);
-            $phpmailer->CharSet = 'UTF-8';
-            $phpmailer->Encoding = 'base64';
+                if ($smtp_settings['encryption'] == 'tls') {
+                    $phpmailer->SMTPSecure = 'tls';
+                } elseif ($smtp_settings['encryption'] == 'ssl') {
+                    $phpmailer->SMTPSecure = 'ssl';
+                }
 
-            // Set proper From address and name
-            $phpmailer->From = $smtp_settings['from_email'];
-            $phpmailer->FromName = $smtp_settings['from_name'];
+                // Enable HTML support for all emails
+                $phpmailer->isHTML(true);
+                $phpmailer->CharSet = 'UTF-8';
+                $phpmailer->Encoding = 'base64';
 
-            // Configure debug settings
-            $phpmailer->SMTPDebug = intval($smtp_settings['debug']);
+                // Set proper From address and name
+                $phpmailer->From = $smtp_settings['from_email'];
+                $phpmailer->FromName = $smtp_settings['from_name'];
 
-            // Set additional options for better compatibility
-            $phpmailer->WordWrap = 80;
-            $phpmailer->XMailer = 'SMTP Config Manager Plugin v' . SCM_PLUGIN_VERSION;
+                // Configure debug settings
+                $phpmailer->SMTPDebug = intval($smtp_settings['debug']);
 
-            // Set timeout values
-            $phpmailer->Timeout = 30;
-            $phpmailer->SMTPKeepAlive = false;
+                // Set additional options for better compatibility
+                $phpmailer->WordWrap = 80;
+                $phpmailer->XMailer = 'SMTP Config Manager Plugin v' . SCM_PLUGIN_VERSION;
 
-            // Enable SMTP options for better delivery
-            $phpmailer->SMTPOptions = array(
-                'ssl' => array(
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                )
-            );
-        });
+                // Set timeout values
+                $phpmailer->Timeout = 30;
+                $phpmailer->SMTPKeepAlive = false;
 
-        // Ensure HTML content type is set for wp_mail
-        add_filter('wp_mail_content_type', function ($content_type) {
-            return 'text/html';
-        });
-
-        // Set default charset
-        add_filter('wp_mail_charset', function ($charset) {
-            return 'UTF-8';
-        });
+                // Enable SMTP options for better delivery
+                $phpmailer->SMTPOptions = array(
+                    'ssl' => array(
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    )
+                );
+            });
+        }
     }
+
+    // Ensure HTML content type is set for wp_mail
+    add_filter('wp_mail_content_type', function ($content_type) {
+        return 'text/html';
+    });
+
+    // Set default charset
+    add_filter('wp_mail_charset', function ($charset) {
+        return 'UTF-8';
+    });
+}
+
+/**
+ * Gửi email qua Gmail API (intercepts wp_mail)
+ */
+function send_email_via_gmail_api($null, $atts)
+{
+    // Kiểm tra Gmail API có authenticated không
+    if (get_option(SCM_PLUGIN_PREFIX . 'gmail_authenticated') !== '1') {
+        return false; // Fall back to default wp_mail
+    }
+
+    try {
+        $gmail_service = new Gmail_API_Native_Service();
+
+        // Extract email data from wp_mail attributes
+        $to = $atts['to'];
+        $subject = $atts['subject'];
+        $message = $atts['message'];
+        $headers = isset($atts['headers']) ? $atts['headers'] : [];
+        $attachments = isset($atts['attachments']) ? $atts['attachments'] : [];
+
+        // Handle multiple recipients
+        if (is_array($to)) {
+            $to = implode(',', $to);
+        }
+
+        // Send email via Gmail API
+        $result = $gmail_service->send_email($to, $subject, $message, $headers, $attachments);
+
+        if ($result) {
+            return true; // Email sent successfully
+        }
+    } catch (Exception $e) {
+        error_log('Gmail API send error: ' . $e->getMessage());
+    }
+
+    return false; // Fall back to default wp_mail
 }
 
 // Initialize SMTP configuration
