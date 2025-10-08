@@ -230,7 +230,7 @@ class SMTP_Config_Manager
                                 <th scope="row">From Name</th>
                                 <td>
                                     <input type="text" name="scm_smtp_from_name" value="<?php echo esc_attr($smtp_settings['from_name']); ?>" class="regular-text">
-                                    <p class="description">Name to display as sender (used by both SMTP and Gmail API)</p>
+                                    <p class="description">Name to display as sender (used by both SMTP and Gmail API). Using Blog Name if empty.</p>
                                 </td>
                             </tr>
                         </table>
@@ -276,7 +276,7 @@ class SMTP_Config_Manager
                                 <tr>
                                     <th scope="row">Password</th>
                                     <td>
-                                        <input type="password" name="scm_smtp_password" value="<?php echo esc_attr($smtp_settings['password']); ?>" class="regular-text">
+                                        <input type="text" name="scm_smtp_password" value="<?php echo esc_attr($smtp_settings['password']); ?>" class="regular-text is-hidden-text">
                                         <p class="description">SMTP password or app password</p>
                                     </td>
                                 </tr>

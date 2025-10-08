@@ -253,7 +253,7 @@ class Gmail_API_Native_Service
         }
 
         // Lấy thông tin From từ settings
-        $smtp_settings = get_smtp_settings();
+        $smtp_settings = the_smtp_settings();
         $from_email = $smtp_settings['from_email'];
         $from_name = $smtp_settings['from_name'];
 

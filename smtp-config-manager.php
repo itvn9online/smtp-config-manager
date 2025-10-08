@@ -102,9 +102,19 @@ function get_smtp_settings()
         'password' => base64_decode(get_option(SCM_PLUGIN_PREFIX . 'scm_smtp_password')),
         'encryption' => get_option(SCM_PLUGIN_PREFIX . 'scm_smtp_encryption', 'tls'),
         'from_email' => get_option(SCM_PLUGIN_PREFIX . 'scm_smtp_from_email'),
-        'from_name' => get_option(SCM_PLUGIN_PREFIX . 'scm_smtp_from_name', get_option('blogname', $_SERVER['HTTP_HOST'])),
+        'from_name' => get_option(SCM_PLUGIN_PREFIX . 'scm_smtp_from_name'),
         'debug' => get_option(SCM_PLUGIN_PREFIX . 'scm_smtp_debug', '0')
     );
+}
+
+// Get SMTP settings with default from_name
+function the_smtp_settings()
+{
+    $result = get_smtp_settings();
+    if (empty($result['from_name'])) {
+        $result['from_name'] = get_option('blogname');
+    }
+    return $result;
 }
 
 // Configure WordPress mail to use SMTP or Gmail API settings
@@ -117,7 +127,7 @@ function configure_wp_mail_smtp()
         add_filter('pre_wp_mail', 'send_email_via_gmail_api', 10, 2);
     } else {
         // Use SMTP settings
-        $smtp_settings = get_smtp_settings();
+        $smtp_settings = the_smtp_settings();
 
         if ($smtp_settings['enabled'] == '1') {
             add_filter('phpmailer_init', function ($phpmailer) use ($smtp_settings) {
