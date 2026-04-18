@@ -68,6 +68,20 @@ class SCM_Auto_Updater
                 'tested' => get_bloginfo('version'),
                 'compatibility' => array()
             );
+        } else {
+            // Plugin is up to date — clear stale update response and mark as no_update
+            if (isset($transient->response[$this->plugin_slug])) {
+                unset($transient->response[$this->plugin_slug]);
+            }
+            $transient->no_update[$this->plugin_slug] = (object) array(
+                'slug' => dirname($this->plugin_slug),
+                'plugin' => $this->plugin_slug,
+                'new_version' => $remote_version,
+                'url' => 'https://github.com/' . $this->github_user . '/' . $this->github_repo,
+                'package' => '',
+                'tested' => get_bloginfo('version'),
+                'compatibility' => array()
+            );
         }
 
         return $transient;
