@@ -322,6 +322,12 @@ class SMTP_Config_Manager
                         <div id="test-output"></div>
                     </div>
 
+                    <div class="scm-info-box">
+                        <h3>🔄 Plugin Updates</h3>
+                        <p>Phiên bản hiện tại: <strong><?php echo esc_html(SCM_PLUGIN_VERSION); ?></strong></p>
+                        <button type="button" id="check-update" class="button button-secondary">Check for Updates</button>
+                        <div id="update-result" style="margin-top: 10px; display: none;"></div>
+                    </div>
 
                 </div>
 
@@ -434,13 +440,6 @@ class SMTP_Config_Manager
                                 Cần request production access để gửi cho mọi email.
                             </div>
                         </div>
-                    </div>
-
-                    <div class="scm-info-box">
-                        <h3>🔄 Plugin Updates</h3>
-                        <p>Phiên bản hiện tại: <strong><?php echo esc_html(SCM_PLUGIN_VERSION); ?></strong></p>
-                        <button type="button" id="check-update" class="button button-secondary">Check for Updates</button>
-                        <div id="update-result" style="margin-top: 10px; display: none;"></div>
                     </div>
                 </div>
             </div>
