@@ -33,10 +33,15 @@ require_once SCM_PLUGIN_PATH . 'includes/class-gmail-api-native.php';
 // Include required files
 require_once SCM_PLUGIN_PATH . 'includes/class-smtp-config-manager.php';
 
+require_once SCM_PLUGIN_PATH . 'includes/class-auto-updater.php';
+
 // Initialize the plugin
 function smtp_config_manager_init()
 {
     new SMTP_Config_Manager();
+
+    global $scm_auto_updater;
+    $scm_auto_updater = new SCM_Auto_Updater(__FILE__);
 }
 add_action('init', 'smtp_config_manager_init');
 

@@ -301,9 +301,59 @@ jQuery(document).ready(function ($) {
 		$("#email-preview")[0].scrollIntoView({ behavior: "smooth" });
 	});
 
-	// Send test email functionality
-	$("#send-test-email").on("click", function (e) {
+	// Check for plugin updates
+	$("#check-update").on("click", function (e) {
 		e.preventDefault();
+
+		var button = $(this);
+		var originalText = button.text();
+		var updateResult = $("#update-result");
+
+		button.text("Checking...").prop("disabled", true);
+		updateResult.show().html("Checking for updates...");
+
+		$.ajax({
+			url: scm_ajax.ajax_url,
+			method: "POST",
+			data: {
+				action: "scm_check_update",
+				nonce: scm_ajax.nonce,
+			},
+			timeout: 15000,
+			success: function (response) {
+				if (response.success) {
+					var data = response.data;
+					if (data.has_update) {
+						updateResult.html(
+							'<div style="color: #d63638;">' +
+							'⬆️ ' + data.message + '<br>' +
+							'<a href="' + scm_ajax.ajax_url.replace('admin-ajax.php', 'plugins.php') + '" class="button button-primary" style="margin-top: 8px;">Go to Updates</a>' +
+							'</div>'
+						);
+					} else {
+						updateResult.html(
+							'<div style="color: #46b450;">✅ ' + data.message + '</div>'
+						);
+					}
+				} else {
+					updateResult.html(
+						'<div style="color: #d63638;">❌ ' + (response.data && response.data.message ? response.data.message : 'Không thể kiểm tra phiên bản.') + '</div>'
+					);
+				}
+			},
+			error: function () {
+				updateResult.html(
+					'<div style="color: #d63638;">❌ Không thể kết nối để kiểm tra update.</div>'
+				);
+			},
+			complete: function () {
+				button.text(originalText).prop("disabled", false);
+			},
+		});
+	});
+
+	// Send test email functionality
+	$("#send-test-email").on("click", function (e) {		e.preventDefault();
 
 		var button = $(this);
 		var originalText = button.text();

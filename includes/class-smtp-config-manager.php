@@ -13,6 +13,7 @@ class SMTP_Config_Manager
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
         add_action('wp_ajax_test_smtp', array($this, 'test_smtp_connection'));
         add_action('wp_ajax_test_gmail_api', array($this, 'test_gmail_api_connection'));
+        add_action('wp_ajax_scm_check_update', array($this, 'ajax_check_update'));
 
         // Initialize tracking table on activation
         register_activation_hook(SCM_PLUGIN_PATH . 'smtp-config-manager.php', array($this, 'create_tracking_table'));
@@ -433,6 +434,13 @@ class SMTP_Config_Manager
                                 Cần request production access để gửi cho mọi email.
                             </div>
                         </div>
+                    </div>
+
+                    <div class="scm-info-box">
+                        <h3>🔄 Plugin Updates</h3>
+                        <p>Phiên bản hiện tại: <strong><?php echo esc_html(SCM_PLUGIN_VERSION); ?></strong></p>
+                        <button type="button" id="check-update" class="button button-secondary">Check for Updates</button>
+                        <div id="update-result" style="margin-top: 10px; display: none;"></div>
                     </div>
                 </div>
             </div>
@@ -1247,6 +1255,33 @@ class SMTP_Config_Manager
             }
         } catch (Exception $e) {
             wp_send_json_error('Gmail API test failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * AJAX handler for checking updates
+     */
+    public function ajax_check_update()
+    {
+        check_ajax_referer('scm_test_smtp', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Unauthorized', 'smtp-config-manager'));
+        }
+
+        // Use global auto updater instance
+        global $scm_auto_updater;
+
+        if (!$scm_auto_updater) {
+            $scm_auto_updater = new SCM_Auto_Updater(SCM_PLUGIN_PATH . 'smtp-config-manager.php');
+        }
+
+        $result = $scm_auto_updater->manual_check_update();
+
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
         }
     }
 }
