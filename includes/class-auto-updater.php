@@ -25,8 +25,8 @@ class SCM_Auto_Updater
         $this->version = SCM_PLUGIN_VERSION;
         $this->github_user = 'itvn9online';
         $this->github_repo = 'smtp-config-manager';
-        $this->github_version_url = 'https://github.com/itvn9online/smtp-config-manager/raw/refs/heads/main/VERSION';
-        $this->github_download_url = 'https://github.com/itvn9online/smtp-config-manager/archive/refs/heads/main.zip';
+        $this->github_version_url = 'https://raw.githubusercontent.com/' . $this->github_user . '/' . $this->github_repo . '/refs/heads/main/VERSION';
+        $this->github_download_url = 'https://github.com/' . $this->github_user . '/' . $this->github_repo . '/archive/refs/heads/main.zip';
 
         $this->init_hooks();
     }
@@ -39,6 +39,21 @@ class SCM_Auto_Updater
         add_filter('pre_set_site_transient_update_plugins', array($this, 'check_for_update'));
         add_filter('plugins_api', array($this, 'plugin_info'), 20, 3);
         add_filter('upgrader_source_selection', array($this, 'upgrader_source_selection'), 10, 3);
+        add_filter('upgrader_post_install', array($this, 'upgrader_post_install'), 10, 3);
+    }
+
+    /**
+     * Canonical plugin directory name (without GitHub archive -main suffix).
+     */
+    private function get_canonical_plugin_dir()
+    {
+        $dir = dirname($this->plugin_slug);
+
+        if (substr($dir, -5) === '-main') {
+            $dir = substr($dir, 0, -5);
+        }
+
+        return $dir !== '.' ? $dir : $this->github_repo;
     }
 
     /**
@@ -88,18 +103,27 @@ class SCM_Auto_Updater
     }
 
     /**
-     * Get remote version from GitHub
+     * Get remote version from GitHub (VERSION or version.txt).
      */
     private function get_remote_version()
     {
-        $request = wp_remote_get($this->github_version_url, array(
-            'timeout' => 10,
-            'sslverify' => false
-        ));
+        $version_urls = array(
+            $this->github_version_url,
+            'https://raw.githubusercontent.com/' . $this->github_user . '/' . $this->github_repo . '/refs/heads/main/version.txt',
+        );
 
-        if (!is_wp_error($request) && wp_remote_retrieve_response_code($request) === 200) {
-            $body = wp_remote_retrieve_body($request);
-            return trim($body);
+        foreach ($version_urls as $url) {
+            $request = wp_remote_get($url, array(
+                'timeout' => 10,
+                'sslverify' => false,
+            ));
+
+            if (!is_wp_error($request) && wp_remote_retrieve_response_code($request) === 200) {
+                $version = trim(wp_remote_retrieve_body($request));
+                if ($version !== '') {
+                    return $version;
+                }
+            }
         }
 
         return false;
@@ -167,7 +191,7 @@ class SCM_Auto_Updater
     }
 
     /**
-     * Fix source directory after download
+     * Fix source directory after download (strip -main from GitHub archive folder name).
      */
     public function upgrader_source_selection($source, $remote_source, $upgrader)
     {
@@ -177,19 +201,90 @@ class SCM_Auto_Updater
             return $source;
         }
 
-        $desired_destination = trailingslashit($remote_source) . dirname($this->plugin_slug);
+        $canonical_dir = $this->get_canonical_plugin_dir();
+        $desired_destination = trailingslashit($remote_source) . $canonical_dir;
 
-        // If already correctly named, return as-is
         if (trailingslashit($source) === trailingslashit($desired_destination)) {
             return $source;
         }
 
-        // GitHub downloads as {repo}-{branch}/, rename it to the correct plugin directory name
+        // GitHub archive extracts as {repo}-main/ — rename to canonical plugin directory
         if ($wp_filesystem->move($source, $desired_destination)) {
             return $desired_destination;
         }
 
         return $source;
+    }
+
+    /**
+     * Rename plugin folder after install if it still has the -main suffix.
+     */
+    public function upgrader_post_install($response, $hook_extra, $result)
+    {
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        if (empty($hook_extra['plugin']) || $hook_extra['plugin'] !== $this->plugin_slug) {
+            return $response;
+        }
+
+        $current_dir = dirname($this->plugin_slug);
+        $canonical_dir = $this->get_canonical_plugin_dir();
+
+        if ($current_dir === $canonical_dir) {
+            return $response;
+        }
+
+        global $wp_filesystem;
+
+        if (!$wp_filesystem) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+
+        $from = trailingslashit(WP_PLUGIN_DIR) . $current_dir;
+        $to = trailingslashit(WP_PLUGIN_DIR) . $canonical_dir;
+
+        if (!$wp_filesystem->exists($from) || $wp_filesystem->exists($to)) {
+            return $response;
+        }
+
+        if ($wp_filesystem->move($from, $to)) {
+            $this->repoint_active_plugin($current_dir, $canonical_dir);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Update active_plugins after directory rename.
+     */
+    private function repoint_active_plugin($old_dir, $new_dir)
+    {
+        $plugin_file = basename($this->plugin_file);
+        $old_slug = $old_dir . '/' . $plugin_file;
+        $new_slug = $new_dir . '/' . $plugin_file;
+
+        $active = get_option('active_plugins', array());
+        if (is_array($active)) {
+            $key = array_search($old_slug, $active, true);
+            if ($key !== false) {
+                $active[$key] = $new_slug;
+                update_option('active_plugins', $active);
+            }
+        }
+
+        if (!is_multisite()) {
+            return;
+        }
+
+        $network_active = get_site_option('active_sitewide_plugins', array());
+        if (isset($network_active[$old_slug])) {
+            $network_active[$new_slug] = $network_active[$old_slug];
+            unset($network_active[$old_slug]);
+            update_site_option('active_sitewide_plugins', $network_active);
+        }
     }
 
     /**

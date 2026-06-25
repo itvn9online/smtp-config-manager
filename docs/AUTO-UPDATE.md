@@ -1,12 +1,12 @@
 # Auto-Update System - Hướng dẫn
 
-Plugin Echbay Mail Queue Manager đã được tích hợp hệ thống tự động cập nhật từ GitHub repository.
+Plugin SMTP Config Manager đã được tích hợp hệ thống tự động cập nhật từ GitHub repository.
 
 ## Cách thức hoạt động
 
 ### 1. Kiểm tra phiên bản
 
-- Plugin sẽ kiểm tra phiên bản mới từ: `https://github.com/itvn9online/smtp-config-manager/raw/refs/heads/main/VERSION`
+- Plugin sẽ kiểm tra phiên bản mới từ: `https://raw.githubusercontent.com/itvn9online/smtp-config-manager/refs/heads/main/VERSION` (fallback: `version.txt`)
 - File VERSION chứa số phiên bản hiện tại (ví dụ: `1.0.7`)
 - WordPress sẽ tự động kiểm tra update theo lịch định sẵn
 
@@ -14,7 +14,7 @@ Plugin Echbay Mail Queue Manager đã được tích hợp hệ thống tự đ�
 
 - Khi có phiên bản mới, plugin sẽ download từ: `https://github.com/itvn9online/smtp-config-manager/archive/refs/heads/main.zip`
 - Tự động giải nén và cài đặt vào thư mục plugin
-- Xử lý đúng cấu trúc thư mục plugin WordPress
+- Tự động bỏ hậu tố `-main` khỏi tên thư mục (kể cả khi thư mục plugin hiện tại đang có `-main`)
 
 ### 3. Giao diện quản trị
 
@@ -26,7 +26,7 @@ Plugin Echbay Mail Queue Manager đã được tích hợp hệ thống tự đ�
 
 ### Kiểm tra update thủ công
 
-1. Vào **Settings → Email Queue**
+1. Vào **Settings → SMTP Config Manager**
 2. Tìm phần **Plugin Updates**
 3. Click **"Check for Updates"**
 4. Xem kết quả và làm theo hướng dẫn
@@ -132,7 +132,7 @@ Plugin Echbay Mail Queue Manager đã được tích hợp hệ thống tự đ�
 
 ## API Reference
 
-### Class: EMQM_Auto_Updater
+### Class: SCM_Auto_Updater
 
 #### Methods
 
@@ -140,7 +140,8 @@ Plugin Echbay Mail Queue Manager đã được tích hợp hệ thống tự đ�
 - `get_remote_version()` - Lấy version từ GitHub
 - `plugin_info($false, $action, $response)` - Thông tin plugin cho popup
 - `manual_check_update()` - Kiểm tra update thủ công
-- `upgrader_source_selection()` - Xử lý source directory sau download
+- `upgrader_source_selection()` - Đổi tên thư mục sau download (bỏ `-main`)
+- `upgrader_post_install()` - Đổi tên thư mục plugin nếu vẫn còn hậu tố `-main`
 
 #### Hooks
 
